@@ -1,4 +1,7 @@
 import random
+import typing
+
+rational = typing.Union[int, float]
 
 FUNCS = [
     "sin",
@@ -15,7 +18,7 @@ FUNCS = [
 DEFAULT_MIN = -9223372036854775808
 DEFAULT_MAX = 9223372036854775807
 
-def random_exclude(min, max, exclude=[0]):
+def random_exclude(min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX, exclude=[0]):
     term_type = random.choice(["int", "float"])
 
     if term_type == "int":
@@ -29,7 +32,7 @@ def random_exclude(min, max, exclude=[0]):
 
     return x
 
-def find_constant(inputs):
+def find_constant(inputs: list):
     for input in inputs:
         if type(input) in {int, float}:
             constant = [input]
@@ -40,7 +43,7 @@ def find_constant(inputs):
 
     return constant
 
-def set_terminal_inputs(vars, num_terms, min=DEFAULT_MIN, max=DEFAULT_MAX):
+def set_terminal_inputs(vars: list, num_terms: int, min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX):
     terminal_inputs = []
     choicelist = vars + [random_exclude(min, max, exclude=[0])]
 
@@ -54,7 +57,7 @@ def set_terminal_inputs(vars, num_terms, min=DEFAULT_MIN, max=DEFAULT_MAX):
 
     return terminal_inputs
 
-def add_operators(vars, inputs, num_operators, nothing_is_operator: bool=True):
+def add_operators(vars: list, inputs: list, num_operators: int, nothing_is_operator: bool=True):
     inputlist = [x for x in inputs if type(x) is str] # remove constant from list
     constant = find_constant(inputs)
     actions = ["nothing", "+", "-", "/", "*", "^", "apply_func"]
