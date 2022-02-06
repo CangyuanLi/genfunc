@@ -15,6 +15,14 @@ FUNCS = [
     "log"
 ]
 
+BASIC_FUNCS = [
+    "+",
+    "-",
+    "*",
+    "/",
+    "^"
+]
+
 DEFAULT_MIN = -9223372036854775808
 DEFAULT_MAX = 9223372036854775807
 
@@ -57,12 +65,21 @@ def set_terminal_inputs(vars: list, num_terms: int, min: rational=DEFAULT_MIN, m
 
     return terminal_inputs
 
-def add_operators(vars: list, inputs: list, num_operators: int, nothing_is_operator: bool=True):
+def add_operators(
+    vars: list, 
+    inputs: list,
+    num_operators: int,
+    funcs: list=FUNCS,
+    basic_funcs: list=BASIC_FUNCS,
+    nothing_is_operator: bool=True
+):
+    function_tree = {}
     inputlist = [x for x in inputs if type(x) is str] # remove constant from list
     constant = find_constant(inputs)
-    actions = ["nothing", "+", "-", "/", "*", "^", "apply_func"]
+    actions = ["nothing", "basic", "apply_func"]
     subactions = ["constant", "variable"]
 
+    counter = 0
     while num_operators > 0:
         action = random.choice(actions)
         idx = random.randint(0, len(inputlist) - 1)
@@ -74,18 +91,19 @@ def add_operators(vars: list, inputs: list, num_operators: int, nothing_is_opera
             elif nothing_is_operator == False:
                 continue
         elif action == "apply_func":
-            func = random.choice(FUNCS)
+            func = random.choice(funcs)
 
             if func == "log":
                 base = random_exclude(1, 20, exclude=[0])
                 func = f"logb{base}"
 
             inputlist[idx] = f"({func}({input}))"
-        else:
+        elif action == "basic":
+            basic_func = random.choice(basic_funcs)
             subaction = random.choice(subactions)
 
             if subaction == "constant":
-                if action in {"*", "/", "^"}:
+                if basic_func in {"*", "/", "^"}:
                     term = random_exclude(-3, 3, exclude=[0,1])
                 else:
                     term = random_exclude(-3, 3, exclude=[0])
@@ -103,6 +121,7 @@ def add_operators(vars: list, inputs: list, num_operators: int, nothing_is_opera
             inputlist[idx] = f"({input}{action}{term})"
 
         num_operators -= 1
+        counter += 1
 
     return inputlist + constant
 
