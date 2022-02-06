@@ -1,3 +1,4 @@
+import math
 import random
 import typing
 
@@ -51,6 +52,21 @@ def find_constant(inputs: list):
 
     return constant
 
+def build_tree(inputs: list):
+    tree = {}
+    for idx, input in enumerate(inputs):
+        tree[idx] = [input]
+
+    return tree
+
+def try_round(x):
+    try:
+        x = round(x, 2)
+    except TypeError:
+        pass
+
+    return x
+
 def set_terminal_inputs(vars: list, num_terms: int, min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX):
     terminal_inputs = []
     choicelist = vars + [random_exclude(min, max, exclude=[0])]
@@ -73,9 +89,10 @@ def add_operators(
     basic_funcs: list=BASIC_FUNCS,
     nothing_is_operator: bool=True
 ):
-    function_tree = {}
     inputlist = [x for x in inputs if type(x) is str] # remove constant from list
     constant = find_constant(inputs)
+    function_tree = build_tree(inputlist)
+    function_tree[len(inputs)] = constant
     actions = ["nothing", "basic", "apply_func"]
     subactions = ["constant", "variable"]
     sides = ["left", "right"]
@@ -88,7 +105,7 @@ def add_operators(
 
         if action == "nothing":
             if nothing_is_operator == True:
-                pass
+                tree_entry = [None]
             elif nothing_is_operator == False:
                 continue
         elif action == "apply_func":
@@ -96,9 +113,10 @@ def add_operators(
 
             if func == "log":
                 base = random_exclude(1, 20, exclude=[0])
-                func = f"logb{base}"
+                func = f"logb{round(base, 2)}"
 
             inputlist[idx] = f"({func}({input}))"
+            tree_entry = [f"{func}(INPUT)"]
         elif action == "basic":
             basic_func = random.choice(basic_funcs)
             subaction = random.choice(subactions)
@@ -110,28 +128,34 @@ def add_operators(
                 else:
                     term = random_exclude(-3, 3, exclude=[0])
 
-                if term < 0 and basic_func == "-":
-                    basic_func = "+"
-                    term = -1 * term
-                elif term < 0 and basic_func == "+":
-                    basic_func = "-"
-                    term = -1 * term
+                if side == "right":
+                    if term < 0 and basic_func == "-":
+                        basic_func = "+"
+                        term = -1 * term
+                    elif term < 0 and basic_func == "+":
+                        basic_func = "-"
+                        term = -1 * term
             elif subaction == "variable":
                 valid_vars = [var for var in vars if var != input]
                 term = random.choice(valid_vars)
 
-            if side == "left":
-                inputlist[idx] = f"({input}{basic_func}{term})"
-            elif side == "right":
-                inputlist[idx] = f"({term}{basic_func}{input})"
+            if side == "right":
+                inputlist[idx] = f"({input}{basic_func}{try_round(term)})"
+                tree_entry = [f"INPUT{basic_func}{term}"]
+            elif side == "left":
+                inputlist[idx] = f"({try_round(term)}{basic_func}{input})"
+                tree_entry = [f"{term}{basic_func}INPUT"]
 
+        function_tree[idx] += tree_entry
         num_operators -= 1
         counter += 1
 
-    return inputlist + constant
+    return inputlist + constant, function_tree
 
 terminal_inputs = set_terminal_inputs(vars=["x", "y", "z"], num_terms=3, min=-5, max=5)
-inputs_w_operators = add_operators(vars=["x", "y", "z"], inputs=terminal_inputs, num_operators=10)
+inputs_w_operators, function_tree = add_operators(vars=["x", "y", "z"], inputs=terminal_inputs, num_operators=10)
+print(build_tree(terminal_inputs))
 
 print(terminal_inputs)
 print(inputs_w_operators)
+print(function_tree)
