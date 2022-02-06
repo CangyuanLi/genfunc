@@ -78,6 +78,7 @@ def add_operators(
     constant = find_constant(inputs)
     actions = ["nothing", "basic", "apply_func"]
     subactions = ["constant", "variable"]
+    sides = ["left", "right"]
 
     counter = 0
     while num_operators > 0:
@@ -101,6 +102,7 @@ def add_operators(
         elif action == "basic":
             basic_func = random.choice(basic_funcs)
             subaction = random.choice(subactions)
+            side = random.choice(sides)
 
             if subaction == "constant":
                 if basic_func in {"*", "/", "^"}:
@@ -108,17 +110,20 @@ def add_operators(
                 else:
                     term = random_exclude(-3, 3, exclude=[0])
 
-                if term < 0 and action == "-":
-                    action = "+"
+                if term < 0 and basic_func == "-":
+                    basic_func = "+"
                     term = -1 * term
-                elif term < 0 and action == "+":
-                    action = "-"
+                elif term < 0 and basic_func == "+":
+                    basic_func = "-"
                     term = -1 * term
-            else:
+            elif subaction == "variable":
                 valid_vars = [var for var in vars if var != input]
                 term = random.choice(valid_vars)
 
-            inputlist[idx] = f"({input}{action}{term})"
+            if side == "left":
+                inputlist[idx] = f"({input}{basic_func}{term})"
+            elif side == "right":
+                inputlist[idx] = f"({term}{basic_func}{input})"
 
         num_operators -= 1
         counter += 1
