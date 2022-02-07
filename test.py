@@ -2,7 +2,10 @@ import math
 import random
 import typing
 
+import numpy as np
+
 rational = typing.Union[int, float]
+collection = typing.Union[list, set]
 
 FUNCS = [
     "sin",
@@ -44,15 +47,15 @@ def random_exclude(min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX, exclude
 def find_constant(inputs: list):
     for input in inputs:
         if type(input) in {int, float}:
-            constant = [input]
+            constant = input
 
             break
     else:
-        constant = []
+        constant = None
 
     return constant
 
-def build_tree(inputs: list):
+def initialize_tree(inputs: list):
     tree = {}
     for idx, input in enumerate(inputs):
         tree[idx] = [input]
@@ -67,7 +70,12 @@ def try_round(x):
 
     return x
 
-def set_terminal_inputs(vars: list, num_terms: int, min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX):
+def set_terminal_inputs(
+    vars: list, 
+    num_terms: int, 
+    min: rational=DEFAULT_MIN, 
+    max: rational=DEFAULT_MAX
+) -> list:
     terminal_inputs = []
     choicelist = vars + [random_exclude(min, max, exclude=[0])]
 
@@ -81,6 +89,9 @@ def set_terminal_inputs(vars: list, num_terms: int, min: rational=DEFAULT_MIN, m
 
     return terminal_inputs
 
+def create_connectors(num_connectors: int, connector_funcs: collection=BASIC_FUNCS):
+    return [random.choice(connector_funcs) for _ in range(num_connectors)]
+
 def add_operators(
     vars: list, 
     inputs: list,
@@ -88,10 +99,10 @@ def add_operators(
     funcs: list=FUNCS,
     basic_funcs: list=BASIC_FUNCS,
     nothing_is_operator: bool=True
-):
+) -> tuple[list, dict]:
     inputlist = [x for x in inputs if type(x) is str] # remove constant from list
     constant = find_constant(inputs)
-    function_tree = build_tree(inputlist)
+    function_tree = initialize_tree(inputlist)
     function_tree[len(inputs)] = constant
     actions = ["nothing", "basic", "apply_func"]
     subactions = ["constant", "variable"]
@@ -150,12 +161,49 @@ def add_operators(
         num_operators -= 1
         counter += 1
 
-    return inputlist + constant, function_tree
+    return inputlist + [constant], function_tree
+
+def generate_ranges(vars: list, min: rational, max: rational) -> dict:
+    intervals = {}
+    for var in vars:
+        range = sorted([random.uniform(min, max), random.uniform(min, max)])
+            
+        intervals[var] = (range[0], range[1])
+
+    return intervals
+
+def generate_inputs(vars, intervals: dict=None):
+    if intervals is None:
+        intervals = generate_ranges(vars, -10, 10)
+
+    input_dict = {}
+    for var in vars:
+        input_dict[var] = np.linspace(intervals[var][0], intervals[var][0])
+
+    if len(input_dict) > 1:
+        inputs = np.meshgrid(*input_dict.values())
+    else:
+        inputs = input_dict.values()
+    
+    return inputs
+
+def evaluate_function(
+    function_tree: dict, 
+    connectors: list, 
+    min: rational=-50, 
+    max: rational=50
+):
+    
+    return None
 
 terminal_inputs = set_terminal_inputs(vars=["x", "y", "z"], num_terms=3, min=-5, max=5)
-inputs_w_operators, function_tree = add_operators(vars=["x", "y", "z"], inputs=terminal_inputs, num_operators=10)
-print(build_tree(terminal_inputs))
+inputs_w_operators, function_tree = add_operators(
+    vars=["x", "y", "z"], 
+    inputs=terminal_inputs, 
+    num_operators=10
+)
 
 print(terminal_inputs)
 print(inputs_w_operators)
 print(function_tree)
+print(generate_inputs(vars=["x"]))
