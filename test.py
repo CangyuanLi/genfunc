@@ -1,11 +1,14 @@
+from collections.abc import Iterable
+from dataclasses import dataclass
+import itertools
 import math
 import random
-import typing
+from typing import Literal, Union
 
 import numpy as np
 
-rational = typing.Union[int, float]
-collection = typing.Union[list, set]
+rational = Union[int, float]
+collection = Union[list, set]
 
 FUNCS = [
     "sin",
@@ -29,6 +32,16 @@ BASIC_FUNCS = [
 
 DEFAULT_MIN = -9223372036854775808
 DEFAULT_MAX = 9223372036854775807
+
+@dataclass
+class TreeEntry:
+    const: rational = None
+    input: rational = None
+    operator: Literal["+", "-", "/", "*", "^"] = None
+    func: str = None
+    side: Literal["left", "right"] = None
+    type: Literal["const", "func", "var"] = None
+    var: Union[rational, str] = None
 
 def random_exclude(min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX, exclude=[0]):
     term_type = random.choice(["int", "float"])
@@ -110,13 +123,14 @@ def add_operators(
 
     counter = 0
     while num_operators > 0:
+        tree_entry = TreeEntry()
         action = random.choice(actions)
         idx = random.randint(0, len(inputlist) - 1)
         input = inputlist[idx]
 
         if action == "nothing":
             if nothing_is_operator == True:
-                tree_entry = [None]
+                tree_entry = None
             elif nothing_is_operator == False:
                 continue
         elif action == "apply_func":
@@ -127,7 +141,8 @@ def add_operators(
                 func = f"logb{round(base, 2)}"
 
             inputlist[idx] = f"({func}({input}))"
-            tree_entry = [f"{func}(INPUT)"]
+            tree_entry.func = func
+            tree_entry.type = "func"
         elif action == "basic":
             basic_func = random.choice(basic_funcs)
             subaction = random.choice(subactions)
@@ -138,6 +153,9 @@ def add_operators(
                     term = random_exclude(-3, 3, exclude=[0,1])
                 else:
                     term = random_exclude(-3, 3, exclude=[0])
+
+                tree_entry.const = term
+                tree_entry.type = "const"
 
                 if side == "right":
                     if term < 0 and basic_func == "-":
@@ -150,14 +168,18 @@ def add_operators(
                 valid_vars = [var for var in vars if var != input]
                 term = random.choice(valid_vars)
 
+                tree_entry.type = "var"
+                tree_entry.var = term
+
             if side == "right":
                 inputlist[idx] = f"({input}{basic_func}{try_round(term)})"
-                tree_entry = [f"INPUT{basic_func}{term}"]
             elif side == "left":
                 inputlist[idx] = f"({try_round(term)}{basic_func}{input})"
-                tree_entry = [f"{term}{basic_func}INPUT"]
 
-        function_tree[idx] += tree_entry
+            tree_entry.operator = basic_func
+            tree_entry.side = side
+
+        function_tree[idx].append(tree_entry)
         num_operators -= 1
         counter += 1
 
@@ -166,24 +188,25 @@ def add_operators(
 def generate_ranges(vars: list, min: rational, max: rational) -> dict:
     intervals = {}
     for var in vars:
-        range = sorted([random.uniform(min, max), random.uniform(min, max)])
+        range = sorted([random.randint(min, max), random.randint(min, max)])
             
         intervals[var] = (range[0], range[1])
 
     return intervals
 
-def generate_inputs(vars, intervals: dict=None):
+def generate_inputs(vars: list, intervals: dict=None) -> Iterable:
     if intervals is None:
         intervals = generate_ranges(vars, -10, 10)
 
     input_dict = {}
     for var in vars:
-        input_dict[var] = np.linspace(intervals[var][0], intervals[var][0])
+        input_dict[var] = np.linspace(intervals[var][0], intervals[var][1], 5)
 
     if len(input_dict) > 1:
-        inputs = np.meshgrid(*input_dict.values())
+        input_tuples = itertools.product(*input_dict.values())
+        inputs = [dict(zip(input_dict.keys(), x)) for x in input_tuples]
     else:
-        inputs = input_dict.values()
+        inputs = input_dict
     
     return inputs
 
@@ -206,4 +229,11 @@ inputs_w_operators, function_tree = add_operators(
 print(terminal_inputs)
 print(inputs_w_operators)
 print(function_tree)
-print(generate_inputs(vars=["x"]))
+
+
+x = generate_inputs(vars=["x", "y"])
+
+for elem in x:
+    print(elem)
+
+print(type(x))
