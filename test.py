@@ -114,9 +114,7 @@ def add_operators(
     nothing_is_operator: bool=True
 ) -> tuple[list, dict]:
     inputlist = [x for x in inputs if type(x) is str] # remove constant from list
-    constant = find_constant(inputs)
     function_tree = initialize_tree(inputlist)
-    function_tree[len(inputs)] = constant
     actions = ["nothing", "basic", "apply_func"]
     subactions = ["constant", "variable"]
     sides = ["left", "right"]
@@ -183,7 +181,7 @@ def add_operators(
         num_operators -= 1
         counter += 1
 
-    return inputlist + [constant], function_tree
+    return inputlist, function_tree
 
 def generate_ranges(vars: list, min: rational, max: rational) -> dict:
     intervals = {}
@@ -206,17 +204,20 @@ def generate_inputs(vars: list, intervals: dict=None) -> Iterable:
         input_tuples = itertools.product(*input_dict.values())
         inputs = [dict(zip(input_dict.keys(), x)) for x in input_tuples]
     else:
-        inputs = input_dict
+        inputs = [{vars[0]: x} for x in input_dict[vars[0]]]
     
     return inputs
 
 def evaluate_function(
     function_tree: dict, 
-    connectors: list, 
+    connectors: list=None,
+    inputs: list[dict]=None,
     min: rational=-50, 
     max: rational=50
 ):
-    
+    for entry in function_tree:
+        print(type(function_tree[entry]))
+
     return None
 
 terminal_inputs = set_terminal_inputs(vars=["x", "y", "z"], num_terms=3, min=-5, max=5)
@@ -231,9 +232,10 @@ print(inputs_w_operators)
 print(function_tree)
 
 
-x = generate_inputs(vars=["x", "y"])
-
+x = generate_inputs(vars=["x"])
 for elem in x:
     print(elem)
 
 print(type(x))
+
+evaluate_function(function_tree)
