@@ -1,22 +1,31 @@
+# Imports
+
+import cmath
 from collections.abc import Iterable
 from dataclasses import dataclass
 import itertools
-import math
+import operator
 import random
 from typing import Literal, Union
+import warnings
 
 import numpy as np
 
+# Settings
+
+warnings.filterwarnings("error")
+
+# Types
+
 rational = Union[int, float]
 collection = Union[list, set]
+
+# Globals
 
 FUNCS = [
     "sin",
     "cos",
     "tan",
-    "cos",
-    "sec",
-    "cot",
     "exp",
     "ln",
     "log"
@@ -36,11 +45,10 @@ DEFAULT_MAX = 9223372036854775807
 @dataclass
 class TreeEntry:
     const: rational = None
-    input: rational = None
     operator: Literal["+", "-", "/", "*", "^"] = None
     func: str = None
     side: Literal["left", "right"] = None
-    type: Literal["const", "func", "var"] = None
+    type: Literal["const", "func", "init", "var"] = None
     var: Union[rational, str] = None
 
 def random_exclude(min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX, exclude=[0]):
@@ -51,9 +59,12 @@ def random_exclude(min: rational=DEFAULT_MIN, max: rational=DEFAULT_MAX, exclude
     elif term_type == "float":
         randfunc = random.uniform
 
-    x = exclude[0]
-    while x in exclude:
+    if exclude is None:
         x = randfunc(min, max)
+    else:
+        x = exclude[0]
+        while x in exclude:
+            x = randfunc(min, max)
 
     return x
 
@@ -68,10 +79,50 @@ def find_constant(inputs: list):
 
     return constant
 
+def translate_ops(op):
+    translation = {
+        "+": operator.add,
+        "-": operator.sub,
+        "*": operator.mul,
+        "/": operator.truediv,
+        "^": operator.pow
+    }
+
+    return translation[op]
+
+def parse_log(log_str: str):
+    log_lst = log_str.split("b")
+    base = float(log_lst[1])
+
+    def log_func(x: rational):
+        return cmath.log(x, base)
+
+    return log_func
+
+def translate_funcs(func):
+    translation = {
+        "sin": cmath.sin,
+        "cos": cmath.cos,
+        "tan": cmath.tan,
+        "exp": cmath.exp,
+        "ln": cmath.log
+    }
+
+    if "log" in func:
+        true_func = "log"
+        translation["log"] = parse_log(func)
+    else:
+        true_func = func
+
+    return translation[true_func]
+
 def initialize_tree(inputs: list):
     tree = {}
     for idx, input in enumerate(inputs):
-        tree[idx] = [input]
+        tree_entry = TreeEntry()
+        tree_entry.type = "init"
+        tree_entry.var = input
+        tree[idx] = [tree_entry]
 
     return tree
 
@@ -102,9 +153,6 @@ def set_terminal_inputs(
 
     return terminal_inputs
 
-def create_connectors(num_connectors: int, connector_funcs: collection=BASIC_FUNCS):
-    return [random.choice(connector_funcs) for _ in range(num_connectors)]
-
 def add_operators(
     vars: list, 
     inputs: list,
@@ -116,7 +164,10 @@ def add_operators(
     inputlist = [x for x in inputs if type(x) is str] # remove constant from list
     function_tree = initialize_tree(inputlist)
     actions = ["nothing", "basic", "apply_func"]
-    subactions = ["constant", "variable"]
+    if len(vars) > 1:
+        subactions = ["constant", "variable"]
+    else:
+        subactions = ["constant"]
     sides = ["left", "right"]
 
     counter = 0
@@ -128,7 +179,7 @@ def add_operators(
 
         if action == "nothing":
             if nothing_is_operator == True:
-                tree_entry = None
+                pass
             elif nothing_is_operator == False:
                 continue
         elif action == "apply_func":
@@ -136,7 +187,7 @@ def add_operators(
 
             if func == "log":
                 base = random_exclude(1, 20, exclude=[0])
-                func = f"logb{round(base, 2)}"
+                func = f"logb{base}"
 
             inputlist[idx] = f"({func}({input}))"
             tree_entry.func = func
@@ -154,14 +205,6 @@ def add_operators(
 
                 tree_entry.const = term
                 tree_entry.type = "const"
-
-                if side == "right":
-                    if term < 0 and basic_func == "-":
-                        basic_func = "+"
-                        term = -1 * term
-                    elif term < 0 and basic_func == "+":
-                        basic_func = "-"
-                        term = -1 * term
             elif subaction == "variable":
                 valid_vars = [var for var in vars if var != input]
                 term = random.choice(valid_vars)
@@ -169,10 +212,10 @@ def add_operators(
                 tree_entry.type = "var"
                 tree_entry.var = term
 
-            if side == "right":
-                inputlist[idx] = f"({input}{basic_func}{try_round(term)})"
-            elif side == "left":
+            if side == "left":
                 inputlist[idx] = f"({try_round(term)}{basic_func}{input})"
+            elif side == "right":
+                inputlist[idx] = f"({input}{basic_func}{try_round(term)})"
 
             tree_entry.operator = basic_func
             tree_entry.side = side
@@ -186,15 +229,17 @@ def add_operators(
 def generate_ranges(vars: list, min: rational, max: rational) -> dict:
     intervals = {}
     for var in vars:
-        range = sorted([random.randint(min, max), random.randint(min, max)])
+        range1 = random_exclude(min, max, exclude=None)
+        range2 = random_exclude(min, max, exclude=[range1]) # ensure range1 != range2
+        range = sorted([range1, range2])
             
         intervals[var] = (range[0], range[1])
 
     return intervals
 
-def generate_inputs(vars: list, intervals: dict=None) -> Iterable:
+def generate_inputs(vars: list, min: rational, max: rational, intervals: dict=None) -> Iterable:
     if intervals is None:
-        intervals = generate_ranges(vars, -10, 10)
+        intervals = generate_ranges(vars, min, max)
 
     input_dict = {}
     for var in vars:
@@ -208,34 +253,70 @@ def generate_inputs(vars: list, intervals: dict=None) -> Iterable:
     
     return inputs
 
-def evaluate_function(
-    function_tree: dict, 
-    connectors: list=None,
-    inputs: list[dict]=None,
-    min: rational=-50, 
-    max: rational=50
-):
-    for entry in function_tree:
-        print(type(function_tree[entry]))
+def create_results_dict(function_tree: dict, inputs: list[dict]=None):
+    results = {key: [] for key in function_tree.keys()}
 
-    return None
+    for entry in function_tree.keys():
+        branch = function_tree[entry]
+        pruned_branch = branch[1:len(branch)]
 
-terminal_inputs = set_terminal_inputs(vars=["x", "y", "z"], num_terms=3, min=-5, max=5)
+        for input in inputs:
+            prev_val = input[branch[0].var]
+
+            for tree_entry in pruned_branch:
+                type = tree_entry.type
+                op = tree_entry.operator
+                func = tree_entry.func
+                side = tree_entry.side
+                
+                if op is not None:
+                    opfunc = translate_ops(op)
+
+                    if type == "var":
+                        val = input[tree_entry.var]
+                    elif type == "const":
+                        val = tree_entry.const
+
+                    if side == "left":
+                        args = [val, prev_val]
+                    elif side == "right":
+                        args = [prev_val, val]
+
+                    try:
+                        new_val = opfunc(*args)
+                    except ZeroDivisionError:
+                        break
+                    except RuntimeWarning: # this happens when large or small value
+                        new_val = 0
+                elif type == "func":
+                    tfunc = translate_funcs(func)
+
+                    try:
+                        new_val = tfunc(prev_val)
+                    except ValueError:
+                        break
+                elif type is None:
+                    continue
+
+                prev_val = new_val
+            
+            results[entry].append(new_val)
+
+    return results
+
+def evaluate_function(results: dict):
+    print(results.values())
+    print([sum(item) for item in zip(*results.values())])
+        
+
+vars = ["x", "y"]
+terminal_inputs = set_terminal_inputs(vars=vars, num_terms=4, min=-5, max=5)
 inputs_w_operators, function_tree = add_operators(
-    vars=["x", "y", "z"], 
+    vars=vars, 
     inputs=terminal_inputs, 
-    num_operators=10
+    num_operators=3,
+    nothing_is_operator=True
 )
-
-print(terminal_inputs)
-print(inputs_w_operators)
-print(function_tree)
-
-
-x = generate_inputs(vars=["x"])
-for elem in x:
-    print(elem)
-
-print(type(x))
-
-evaluate_function(function_tree)
+x = generate_inputs(vars=vars, min=-10, max=10)
+res = create_results_dict(function_tree, inputs=x)
+evaluate_function(res)
