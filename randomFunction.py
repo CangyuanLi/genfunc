@@ -198,7 +198,6 @@ def add_operators(
                 base = random_exclude(base_min, base_max, exclude=[0])
                 func = f"logb{base}"
 
-            inputlist[idx] = f"({func}({input}))"
             tree_entry.func = func
             tree_entry.type = "func"
         elif action == "basic":
@@ -221,11 +220,6 @@ def add_operators(
                 tree_entry.type = "var"
                 tree_entry.var = term
 
-            if side == "left":
-                inputlist[idx] = f"({try_round(term)}{basic_func}{input})"
-            elif side == "right":
-                inputlist[idx] = f"({input}{basic_func}{try_round(term)})"
-
             tree_entry.operator = basic_func
             tree_entry.side = side
 
@@ -233,7 +227,7 @@ def add_operators(
         num_operators -= 1
         counter += 1
 
-    return inputlist, function_tree
+    return function_tree
 
 def generate_ranges(vars: list, min: rational, max: rational) -> dict:
     intervals = {}
@@ -381,7 +375,7 @@ def plot_function(df):
 """
 def main(vars):
     terminal_inputs = set_terminal_inputs(vars=vars, num_terms=4, min=-100, max=100)
-    inputs_w_operators, function_tree = add_operators(
+    function_tree = add_operators(
         vars=vars, 
         inputs=terminal_inputs, 
         num_operators=10,
