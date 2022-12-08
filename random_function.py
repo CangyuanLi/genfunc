@@ -371,22 +371,4 @@ def plot_function(df):
     plt.show()
 
     return None
-
-"""
-def main(vars):
-    terminal_inputs = set_terminal_inputs(vars=vars, num_terms=4, min=-100, max=100)
-    function_tree = add_operators(
-        vars=vars, 
-        inputs=terminal_inputs, 
-        num_operators=10,
-        c_min=-100,
-        c_max=100,
-        nothing_is_operator=True
-    )
-    x = generate_inputs(vars=vars, min=-100, max=100)
-    res = create_results_dict(function_tree, inputs=x)
-    lhs = evaluate_function(res, terminal_inputs)
-    df = create_output_table(x, lhs)
-    print(df)
-    plot_function(df)
-"""
+    
