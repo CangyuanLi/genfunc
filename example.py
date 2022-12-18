@@ -1,15 +1,15 @@
 import random_function as randfunc
 
-VARS = ["x", "y"]
+VARS = ["x"]
 
 def main():
-    terminal_inputs = randfunc.set_terminal_inputs(vars=VARS, num_terms=4, min=-100, max=100)
+    terminal_inputs = randfunc.set_terminal_inputs(vars=VARS, num_terms=3, min=-20, max=35)
     function_tree = randfunc.add_operators(
         vars=VARS, 
         inputs=terminal_inputs, 
         num_operators=10,
-        c_min=-100,
-        c_max=100,
+        c_min=-10,
+        c_max=10,
         nothing_is_operator=True
     )
     x = randfunc.generate_inputs(vars=VARS, min=-100, max=100)

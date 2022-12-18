@@ -371,4 +371,3 @@ def plot_function(df):
     plt.show()
 
     return None
-    
